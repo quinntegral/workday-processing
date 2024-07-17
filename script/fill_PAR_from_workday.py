@@ -2,6 +2,7 @@ from docx import Document
 from docx.shared import Pt
 from pdf2docx import parse
 import os 
+import re
 
 def fetch_workday_data():
     # create docx in directory
@@ -19,7 +20,40 @@ def fetch_workday_data():
 
     # save and parse dat
     document = Document(docx_path)
-    parse_workday_docx(document)
+    raw_data = parse_workday_docx(document)
+    organize_data(raw_data)
+
+def organize_data(raw_data):
+    entries = []
+    temp = []
+    r = re.compile('[0-9]*/[0-9]*/[0-9]*')
+    h = re.compile('Hours:.*')
+    for index, entry in enumerate(raw_data):
+        if index == 0:
+            continue
+        else:
+            if r.match(entry['Date']) is not None:
+                # date for the current entry
+                if len(temp) > 2:
+
+                    continue
+                temp.append(entry['Date'])
+            elif h.match(entry['Date']) is not None:
+                # hours for the current entry
+                temp.append(entry['Date'][9:])
+                entries.append(temp)
+                # reset temp
+                temp = []
+            else:
+                # comment for the current entry
+                if len(temp) == 2:
+                    print("happened")
+                    temp[0] += ', ' + entry['Comment']
+                temp.append(entry['Comment'])
+    return entries
+
+
+
 
 def parse_workday_docx(document: Document):
     table = document.tables[1]
