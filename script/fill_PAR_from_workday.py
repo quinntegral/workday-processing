@@ -24,6 +24,8 @@ def fetch_workday_data():
     organize_data(raw_data)
 
 def organize_data(raw_data):
+    # organizes data into : [comment, date, hours logged]
+    # combines entries that are logged on the same day
     entries = []
     temp = []
     r = re.compile('[0-9]*/[0-9]*/[0-9]*')
