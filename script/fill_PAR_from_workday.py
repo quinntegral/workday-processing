@@ -20,6 +20,7 @@ def fetch_workday_data():
 
     # save and parse dat
     document = Document(docx_path)
+    name = document.paragraphs[1].text.split('\n')[0]
     raw_data = parse_workday_docx(document)
     organize_data(raw_data)
 
@@ -37,7 +38,6 @@ def organize_data(raw_data):
             if r.match(entry['Date']) is not None:
                 # date for the current entry
                 if len(temp) > 2:
-
                     continue
                 temp.append(entry['Date'])
             elif h.match(entry['Date']) is not None:
@@ -49,7 +49,6 @@ def organize_data(raw_data):
             else:
                 # comment for the current entry
                 if len(temp) == 2:
-                    print("happened")
                     temp[0] += ', ' + entry['Comment']
                 temp.append(entry['Comment'])
     return entries
@@ -69,12 +68,12 @@ def parse_workday_docx(document: Document):
             keys = tuple(text)
         row_data = dict(zip(keys, text))
         data.append(row_data)
-    
-    for row in data:
-        print("\n")
-        print(row)
-
     return data
+    # for row in data:
+    #     print("\n")
+    #     print(row)
+
+
     # FROM ORIG: date, comment, quantity
     # just look at reported time
 
