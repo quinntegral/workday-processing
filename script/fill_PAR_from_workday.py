@@ -20,7 +20,9 @@ def fetch_workday_data():
 
     # save and parse dat
     document = Document(docx_path)
-    name = document.paragraphs[1].text.split('\n')[0]
+    name, start_date, end_date = document.paragraphs[1].text.split('\n')
+    start_date = start_date[-10:]
+    end_date = end_date[-10:]
     raw_data = parse_workday_docx(document)
     organize_data(raw_data)
 
