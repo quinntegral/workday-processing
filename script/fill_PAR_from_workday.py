@@ -22,16 +22,17 @@ def parse_workday_docx(document: Document):
 
 
 def fetch_workday_data():
-    # create docx in directory
+    # create docx in directory (proxy for saving pdf as docx)
     docx_path = "./unfilled-reports/test.docx"
     document = Document()
     os.chmod(docx_path, 0o775)
     document.save(f"{docx_path}")
 
-    # convert from pdf to docx
+    # convert existing pdf(s) to docx for parsing
     pdf_path = "./employee-pdfs/jq_example.pdf" # change to loop later
     parse(pdf_path, docx_path)
     if not os.path.exists(docx_path):
+        # TODO : change to exception for error handling 
         print(f"Failed to create file {docx_path}.")
         return None
 
@@ -93,22 +94,43 @@ def fill_document(data, name, start_date, end_date):
     # period ending
     PAR.tables[2].rows[2].cells[5].text = end_date
 
-    if len(data) > 20:
+    # PAR Template is extended to 3 pages with 100 rows total
+    if len(data) > 100:
         exit("Your Workday pdf output has too many time entries (over 20) for the report. Please adjust and resubmit. Exiting")
     
     # sublist indices: 0 = description, 1 = date, 2 = hours worked
+    # desired format : 0 = date, 1 = description, 2 = hours worked
     for i, sublist in enumerate(data):
         for j, item in enumerate(sublist):
-            print(j, item)
-            PAR.tables[3].rows[i+1].cells[j].text = item
+            # description
+            if j == 0:
+                PAR.tables[3].rows[i+1].cells[1].text = item
+            # date
+            elif j == 1:
+                PAR.tables[3].rows[i+1].cells[0].text = item
+            # hours worked
+            else:
+                PAR.tables[3].rows[i+1].cells[j].text = item
+
     
+    # '/' and ' ' interfere with the naming of files
+    start_date = start_date.replace("/", "_")
     name = name.replace(" ", "")
-    filename = f'./filled-reports/PAR-{name}-{start_date}.docx'
-    # TODO make file with filename
+    filename = f'./filled-reports/{name}/PAR-{name}-{start_date}.docx'
 
-    # then save
-    PAR.save(filename)
-
+    # check if directory with employee name exists
+    if not os.path.exists(f'./filled-reports/{name}'):
+        try:
+            os.makedirs(f'./filled-reports/{name}')
+        except OSError as e:
+            print(f"Error creating directory : {e}")
+    
+    # save file with filename at directory
+    try :
+        PAR.save(filename)
+    except Exception as e:
+        print(f"Error saving document : {e}")
+        raise
 
 def main():
     raw_data, name, start_date, end_date = fetch_workday_data()
