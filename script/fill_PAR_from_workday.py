@@ -21,15 +21,15 @@ def parse_workday_docx(document: Document):
     return data
 
 
-def fetch_workday_data():
+def fetch_workday_data(path):
     # create docx in directory (proxy for saving pdf as docx)
     docx_path = "./unfilled-reports/test.docx"
     document = Document()
     os.chmod(docx_path, 0o775)
     document.save(f"{docx_path}")
 
-    # convert existing pdf(s) to docx for parsing
-    pdf_path = "./employee-pdfs/jq_example.pdf" # change to loop later
+    # convert existing pdf to docx for parsing
+    pdf_path = f"./employee-pdfs/{path}"
 
     try:
         parse(pdf_path, docx_path)
@@ -80,7 +80,7 @@ def organize_data(raw_data):
                 # comment for the current entry
                 description = entry['Comment'].replace('\n', '')
                 if len(temp) >= 2:
-                    temp[0] += ', ' + description
+                    temp[0] += ';\n' + description
                 else:
                     temp.append(description)
     return entries
@@ -128,12 +128,9 @@ def fill_document(data, name, start_date, end_date):
     name = name.replace(" ", "")
     filename = f'./filled-reports/{name}/PAR-{name}-{start_date}.docx'
 
-    # check if directory with employee name exists
+    # check if directory exists
     if not os.path.exists(f'./filled-reports/{name}'):
-        try:
-            os.makedirs(f'./filled-reports/{name}')
-        except OSError as e:
-            print(f"Error creating directory : {e}")
+        os.makedirs(f'filled-reports/{name}')
     
     # save file with filename at directory
     try :
@@ -142,15 +139,32 @@ def fill_document(data, name, start_date, end_date):
         print(f"Error saving document : {e}")
         raise
 
-    
+    print(f"File for {name} successfully generated for {start_date}")
+    # return path to successfully generated file
+    return filename
 
+    
 def main():
-    raw_data, name, start_date, end_date = fetch_workday_data()
-    if raw_data:
-        organized_data = organize_data(raw_data)
-        fill_document(organized_data, name, start_date, end_date)
-    else:
-         exit(1, "Fetching workday data failed. Exiting")
+    # assuming that each employee has their own directory with their pdfs in it in employee-pdfs
+    for dir in os.listdir("./employee-pdfs"):
+        if os.path.isfile("dir"):
+            print(f"file object found at {dir}")
+            continue
+        else:
+            # list of successfully created file paths for the specific employee
+            file_paths = []
+
+            # creating each file individually
+            for file in os.listdir(f'./employee-pdfs/{dir}'):
+                raw_data, name, start_date, end_date = fetch_workday_data(f"{dir}/{file}")
+                if raw_data:
+                    organized_data = organize_data(raw_data)
+                    path = fill_document(organized_data, name, start_date, end_date)
+                    file_paths.append(path)
+                else:
+                    exit(1, "Fetching workday data failed. Exiting")
+            
+            # TODO : use file_paths list to create a master doc with the combined sheets
 
 
 if __name__ == "__main__":
