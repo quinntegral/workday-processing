@@ -30,11 +30,13 @@ def fetch_workday_data():
 
     # convert existing pdf(s) to docx for parsing
     pdf_path = "./employee-pdfs/jq_example.pdf" # change to loop later
-    parse(pdf_path, docx_path)
-    if not os.path.exists(docx_path):
-        # TODO : change to exception for error handling 
-        print(f"Failed to create file {docx_path}.")
-        return None
+
+    try:
+        parse(pdf_path, docx_path)
+    except FileNotFoundError as fnf_error:
+        print(f"File Not Found : {fnf_error}")
+    except Exception as e:
+        print(f'Error converting pdf to docx : {e}')
 
     # save and parse dat
     document = Document(docx_path)
@@ -76,10 +78,11 @@ def organize_data(raw_data):
                 temp = []
             else:
                 # comment for the current entry
+                description = entry['Comment'].replace('\n', '')
                 if len(temp) >= 2:
-                    temp[0] += ', ' + entry['Comment']
+                    temp[0] += ', ' + description
                 else:
-                    temp.append(entry['Comment'])
+                    temp.append(description)
     return entries
 
 # NOTE FORGERY CONCERNS WITH SIGNATURE, DISCUSS LATER
@@ -95,11 +98,13 @@ def fill_document(data, name, start_date, end_date):
     PAR.tables[2].rows[2].cells[5].text = end_date
 
     # PAR Template is extended to 3 pages with 100 rows total
+    # TODO : automate adding rows to the document as needed
     if len(data) > 100:
         exit("Your Workday pdf output has too many time entries (over 20) for the report. Please adjust and resubmit. Exiting")
     
     # sublist indices: 0 = description, 1 = date, 2 = hours worked
     # desired format : 0 = date, 1 = description, 2 = hours worked
+    total_hours_worked = 0
     for i, sublist in enumerate(data):
         for j, item in enumerate(sublist):
             # description
@@ -111,6 +116,11 @@ def fill_document(data, name, start_date, end_date):
             # hours worked
             else:
                 PAR.tables[3].rows[i+1].cells[j].text = item
+                total_hours_worked += float(item)
+    
+    # add total hours worked to the end of sheet
+    PAR.tables[3].rows[-1].cells[-1].text = str(total_hours_worked)
+
 
     
     # '/' and ' ' interfere with the naming of files
@@ -131,6 +141,8 @@ def fill_document(data, name, start_date, end_date):
     except Exception as e:
         print(f"Error saving document : {e}")
         raise
+
+    
 
 def main():
     raw_data, name, start_date, end_date = fetch_workday_data()
