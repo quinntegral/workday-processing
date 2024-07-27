@@ -97,9 +97,8 @@ def fill_document(data, name, start_date, end_date):
     # period ending
     PAR.tables[2].rows[2].cells[5].text = end_date
 
-    # PAR Template is extended to 3 pages with 100 rows total
-    # TODO : automate adding rows to the document as needed
-    if len(data) > 100:
+    # PAR Template is 1 page with 20 rows, which is enough because there should be a max of 14 rows for each 2 week period
+    if len(data) > 20:
         exit("Your Workday pdf output has too many time entries (over 20) for the report. Please adjust and resubmit. Exiting")
     
     # sublist indices: 0 = description, 1 = date, 2 = hours worked
@@ -121,7 +120,7 @@ def fill_document(data, name, start_date, end_date):
     # add total hours worked to the end of sheet
     PAR.tables[3].rows[-1].cells[-1].text = str(total_hours_worked)
 
-
+    # TODO : auto fill in date/signature?
     
     # '/' and ' ' interfere with the naming of files
     start_date = start_date.replace("/", "_")
@@ -143,7 +142,25 @@ def fill_document(data, name, start_date, end_date):
     # return path to successfully generated file
     return filename
 
+def combine_documents(filenames, filename):
+    # use first doc as default template so styling is consistent
+    merged_document = Document(filenames[0])
+    for index, file in enumerate(filenames):
+        if index == 0:
+            merged_document.add_page_break()
+            continue
+        else:
+            cur_doc = Document(file)
+            
+            if index != len(filenames) - 1:
+                cur_doc.add_page_break()
+            
+            for element in cur_doc.element.body:
+                merged_document.element.body.append(element)
+    merged_document.save(filename)
+    return filename
     
+
 def main():
     # assuming that each employee has their own directory with their pdfs in it in employee-pdfs
     for dir in os.listdir("./employee-pdfs"):
@@ -162,9 +179,10 @@ def main():
                     path = fill_document(organized_data, name, start_date, end_date)
                     file_paths.append(path)
                 else:
-                    exit(1, "Fetching workday data failed. Exiting")
+                    exit(1, f"Fetching workday data for ./employee-pdfs/{dir} failed. Exiting")
             
-            # TODO : use file_paths list to create a master doc with the combined sheets
+            # adds all of the docs together
+            combine_documents(file_paths, f"./final-reports/final-report-{dir}.docx")
 
 
 if __name__ == "__main__":
