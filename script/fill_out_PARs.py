@@ -103,14 +103,28 @@ def fill_document(data, name, start_date, end_date):
 
 
 def main():
-    for filename in os.listdir("./employee-pdfs"):
+    organized_data = []
+    # parse data for all documents
+    employee_pdfs = os.listdir("./employee-pdfs")
+    start_date = 0
+    end_date = 0
+    for index, filename in enumerate(employee_pdfs):
         print(f"Processing {filename}...")
-        raw_data, name, start_date, end_date = fetch_workday_data(f"./employee-pdfs/{filename}")
+        raw_data, name, temp_start, temp_end = fetch_workday_data(f"./employee-pdfs/{filename}")
+        # start date for all pdfs
+        if index == 0:
+            start_date = temp_start
+        # end date for all pdfs
+        if index == (len(employee_pdfs) - 1):
+            end_date = temp_end
+        # add organized data to list of all data
         if raw_data:
-            organized_data = organize_data(raw_data, name)
-            fill_document(organized_data, name, start_date, end_date)
+            organized_data += organize_data(raw_data, name)
         else:
             exit(1, "Fetching workday data failed. Exiting")
+    # fill document with all data
+    fill_document(organized_data, name, start_date, end_date)
+
     print("Done.")
 
 
