@@ -1,5 +1,4 @@
-EMPLOYEE_PDFS_DIR = ./employee-pdfs
-WORKDAY_DOCX_DIR = ./workday-reports
+EMPLOYEE_PDFS_DIR = ./employees
 PAR_TEMPLATE_DIR = ./par-template
 FILLED_REPORTS_DIR = ./filled-reports
 SCRIPT_DIR = ./script
@@ -27,16 +26,16 @@ check_prerequisites:
 	@if [ ! "$(shell ls -A $(EMPLOYEE_PDFS_DIR))" ]; then echo "Directory $(EMPLOYEE_PDFS_DIR) is empty. Please add workday time-tracking PDFs."; exit 1; fi
 	@if [ ! -d $(PAR_TEMPLATE_DIR) ]; then echo "Directory $(PAR_TEMPLATE_DIR) does not exist. Please create it and add AU's PAR template as PAR-template.docx."; exit 1; fi
 	@if [ ! -f $(PAR_TEMPLATE_DIR)/PAR-template.docx ]; then echo "PAR template file not found in $(PAR_TEMPLATE_DIR). Please add PAR-template.docx."; exit 1; fi
-	@mkdir -p $(WORKDAY_DOCX_DIR) $(FILLED_REPORTS_DIR)
+	@mkdir -p $(FILLED_REPORTS_DIR)
 
-# run main script
+# run main script and clean up pdfs
 run:
 	@echo "Running the main script..."
 	python $(SCRIPT)
-	@echo "Cleaning up employee pdfs..."
-	find $(FILLED_REPORTS_DIR) -type f -name "*.docx" -exec rm -f {} +
+	@echo "Success! Generated PAR's are in filled reports directory. Run 'make clean' to delete all used/produced files."
 
-# clean up generated files
+# cleans up generated files
 clean:
-	@echo "Cleaning up generated PARs..."
+	@echo "Cleaning up input employee pdfs and generated PARs..."
+	find $(EMPLOYEE_PDFS_DIR) -type f -name "*.pdf" -exec rm -f {} +
 	rm -f $(FILLED_REPORTS_DIR)/*.docx

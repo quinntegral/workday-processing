@@ -2,10 +2,8 @@ import pdf2docx
 from docx import Document
 import os 
 import re
+from datetime import datetime
 
-# TODO : find way to distinguish between employee in filename and enforce that
-# aggregate 3 1-month reports per employee into (now larger) PAR report without overwriting cells
-# idea: change parse_workday_docx into look that takes in multiple documents and returns a larger raw_data list
 
 def parse_workday_docx(document: Document):
     ''' helper that gets raw data from workday docx '''
@@ -24,19 +22,21 @@ def parse_workday_docx(document: Document):
 
 
 def fetch_workday_data(pdf_path):
-    # create empty docx, convert workday output to docx, save
-    docx_path = "./workday-docs/workday-data-to-parse.docx"
-    open(docx_path, "w")
-    document = Document()
-    os.chmod(docx_path, 0o775)
-    document.save(f"{docx_path}")
+    '''
+    creates empty docx, convert workday output to docx and saves,
+    then gets raw data from new docx with above helper
+    '''
+    docx_path = "./script/blank.docx"
+    if not os.path.exists(docx_path):
+        document = Document()
+        document.save(docx_path)
+        os.chmod(docx_path, 0o775)
 
     pdf2docx.parse(pdf_path, docx_path)
     if not os.path.exists(docx_path):
         exit(f"Failed to create file {docx_path}.")
     document = Document(docx_path)
 
-    # get data from document
     raw_data = parse_workday_docx(document)
     name, start_date, end_date = document.paragraphs[1].text.split('\n')
     start_date = start_date[-10:].strip()
@@ -45,9 +45,11 @@ def fetch_workday_data(pdf_path):
     return raw_data, name, start_date, end_date
 
 
-def organize_data(raw_data, name):
-    ''' returns data in format [comment, date, hours logged]
-    combines entries that are logged on the same day '''
+def organize_data(raw_data):
+    '''
+    returns data in format [comment, date, hours logged]
+    combines entries that are logged on the same day
+    '''
     entries = []
     temp = []
     r = re.compile('[0-9]*/[0-9]*/[0-9]*')
@@ -84,9 +86,7 @@ def fill_document(data, name, start_date, end_date):
     PAR.tables[2].rows[0].cells[1].text.replace("XX", name)
     PAR.tables[2].rows[2].cells[3].text = start_date
     PAR.tables[2].rows[2].cells[5].text = end_date
-
-    # sublist indices: 0=description, 1=date, 2=hours
-    # cells in PAR table: 0=date, 1=description, 2=hours
+    # sublist: 0=description, 1=date, 2=hours, PAR table: 0=date, 1=description, 2=hours
     for i, sublist in enumerate(data):
         if not sublist[0]:
             print(f"NOTE: {name} didn't include a description for all days worked.")
@@ -94,39 +94,49 @@ def fill_document(data, name, start_date, end_date):
         PAR.tables[3].rows[i+1].cells[0].text = sublist[1]
         PAR.tables[3].rows[i+1].cells[2].text = sublist[2]
     
-    name = name.replace(" ", "")
-    start_date = start_date.replace("/", "")
-    filename = f'./filled-reports/PAR-{name}-{start_date}.docx'
-    open(filename, "w")
+    name = name.replace(" ", "-")
+    start_date = start_date.replace("/", ".")
+    end_date = end_date.replace("/", ".")
+    filename = f'./filled-reports/{name}_{start_date}_to_{end_date}.docx'
+    open(filename, "w").close()
     PAR.save(filename)
     os.chmod(filename, 0o666)  # gives permissions rw-rw-rw-
 
 
+def compare_dates(current_start, current_end, new_start, new_end):
+    '''
+    compares current start and end dates with new start and end dates 
+    returns updated start and end dates 
+    '''
+    if not current_start:
+        current_start = new_start
+    else:
+        current_start = min(current_start, new_start, key=lambda date: datetime.strptime(date, "%m/%d/%Y"))
+    
+    if not current_end:
+        current_end = new_end
+    else:
+        current_end = max(current_end, new_end, key=lambda date: datetime.strptime(date, "%m/%d/%Y"))
+    
+    return current_start, current_end
+
+
 def main():
     organized_data = []
-    # parse data for all documents
-    employee_pdfs = os.listdir("./employee-pdfs")
-    start_date = 0
-    end_date = 0
-    for index, filename in enumerate(employee_pdfs):
-        print(f"Processing {filename}...")
-        raw_data, name, temp_start, temp_end = fetch_workday_data(f"./employee-pdfs/{filename}")
-        # start date for all pdfs
-        if index == 0:
-            start_date = temp_start
-        # end date for all pdfs
-        if index == (len(employee_pdfs) - 1):
-            end_date = temp_end
-        # add organized data to list of all data
-        if raw_data:
-            organized_data += organize_data(raw_data, name)
-        else:
-            exit(1, "Fetching workday data failed. Exiting")
-    # fill document with all data
+    start_date, end_date = "", ""
+    employees = os.listdir("./employees")
+    # fill document for each employee
+    for _, employee in enumerate(employees):
+        employee_path = f"./employees/{employee}"
+        print(f"Processing {employee_path}...")
+        for file in os.listdir(employee_path):
+            raw_data, name, file_start, file_end = fetch_workday_data(f"{employee_path}/{file}")
+            start_date, end_date = compare_dates(start_date, end_date, file_start, file_end)
+            if raw_data:
+                organized_data += organize_data(raw_data)
+            else:
+                exit("Fetching workday data failed. Exiting")
     fill_document(organized_data, name, start_date, end_date)
-
-    print("Done.")
-
 
 if __name__ == "__main__":
     main()
