@@ -33,6 +33,8 @@ check_prerequisites:
 run:
 	@echo "Running the main script..."
 	python $(SCRIPT)
+	@echo "Cleaning up employee pdfs..."
+	find $(FILLED_REPORTS_DIR) -type f -name "*.docx" -exec rm -f {} +
 
 # clean up generated files
 clean:
