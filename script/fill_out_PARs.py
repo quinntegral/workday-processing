@@ -4,6 +4,9 @@ import os
 import re
 from datetime import datetime
 
+# TODO : Error with reading data from June
+# TODO : update README
+
 
 def parse_workday_docx(document: Document):
     ''' helper that gets raw data from workday docx '''
@@ -122,21 +125,29 @@ def compare_dates(current_start, current_end, new_start, new_end):
 
 
 def main():
-    organized_data = []
-    start_date, end_date = "", ""
     employees = os.listdir("./employees")
-    # fill document for each employee
+    # loop through employees
     for _, employee in enumerate(employees):
+        # resetting initial variables
+        organized_data = []
+        start_date, end_date = "", ""
+        employee_name = ""
         employee_path = f"./employees/{employee}"
         print(f"Processing {employee_path}...")
         for file in os.listdir(employee_path):
             raw_data, name, file_start, file_end = fetch_workday_data(f"{employee_path}/{file}")
+            # update values
             start_date, end_date = compare_dates(start_date, end_date, file_start, file_end)
+            employee_name = name
             if raw_data:
+                # add organized data to list of all data
                 organized_data += organize_data(raw_data)
             else:
                 exit("Fetching workday data failed. Exiting")
-    fill_document(organized_data, name, start_date, end_date)
+        # fill document for current employee
+        fill_document(organized_data, employee_name, start_date, end_date)
+        print(f"Successfully created report for ${name}")
+
 
 if __name__ == "__main__":
     main()
