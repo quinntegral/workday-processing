@@ -61,19 +61,20 @@ def organize_data(raw_data):
     temp = []
     r = re.compile('[0-9]*/[0-9]*/[0-9]*')
     h = re.compile('Hours:.*')
-    for index, entry in enumerate(raw_data):
-        
+    for _, entry in enumerate(raw_data):     
         if r.match(entry['Date']) is not None:
             # date for the current entry
             if len(temp) >= 2:
                 continue
             temp.append(entry['Date'])
         elif h.match(entry['Date']) is not None:
-        # hours for the current entry
-            temp.append(entry['Date'][9:])
-            entries.append(temp)
-            # reset temp
-            temp = []
+            # hours for the current entry
+            hours = re.findall("\d+\.?\d*", entry['Date'])
+            if hours:
+                temp.append(hours[0])
+                entries.append(temp)
+                # reset temp
+                temp = []
         else:
             # comment for the current entry
             if len(temp) >= 2:
