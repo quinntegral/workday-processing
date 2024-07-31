@@ -11,5 +11,5 @@ To set up for use:
 * Ensure you have a Python virtual environment set up.
 * Use the Makefile to install dependencies and run the script from the repo's root directory.
   * The "make" command will install dependencies and run the script.
-  * To clean up used/generated files, run "make clean".
+  * To clean up ALL used/generated files, run "make clean". This will delete all pfds used to generate reports as well as the reports that were generated.
 * Finalized PARs will be output to the filled-reports directory. Their filenames will contain the employee's name and the Workday pdf's time range.
