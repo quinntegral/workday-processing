@@ -4,7 +4,7 @@ import os
 import re
 from datetime import datetime
 
-# TODO : Error with reading data from June
+# TODO : Error with reading data from June - better parser for hours, takes into account rows
 # TODO : update README
 
 
@@ -13,14 +13,18 @@ def parse_workday_docx(document: Document):
     table = document.tables[1]
     data = []
     keys = None
-    for i, row in enumerate(table.rows):
-        text = [cell.text for cell in row.cells]
-        if i == 0:
-            continue
-        if i == 1:
-            keys = tuple(text)
-        row_data = dict(zip(keys, text))
-        data.append(row_data)
+    # every second table out of 3 is the table that we want
+    for i in range(1, len(document.tables), 3):
+        for i, row in enumerate(document.tables[i].rows):
+            text = [cell.text for cell in row.cells]
+            if i == 0:
+                continue
+            if i == 1:
+                if keys == None:
+                    keys = tuple(text)
+            else:
+                row_data = dict(zip(keys, text))
+                data.append(row_data)
     return data
 
 
@@ -58,26 +62,24 @@ def organize_data(raw_data):
     r = re.compile('[0-9]*/[0-9]*/[0-9]*')
     h = re.compile('Hours:.*')
     for index, entry in enumerate(raw_data):
-        if index == 0:
-            continue
+        
+        if r.match(entry['Date']) is not None:
+            # date for the current entry
+            if len(temp) >= 2:
+                continue
+            temp.append(entry['Date'])
+        elif h.match(entry['Date']) is not None:
+        # hours for the current entry
+            temp.append(entry['Date'][9:])
+            entries.append(temp)
+            # reset temp
+            temp = []
         else:
-            if r.match(entry['Date']) is not None:
-                # date for the current entry
-                if len(temp) >= 2:
-                    continue
-                temp.append(entry['Date'])
-            elif h.match(entry['Date']) is not None:
-                # hours for the current entry
-                temp.append(entry['Date'][9:])
-                entries.append(temp)
-                # reset temp
-                temp = []
+            # comment for the current entry
+            if len(temp) >= 2:
+                temp[0] += ', ' + entry['Comment']
             else:
-                # comment for the current entry
-                if len(temp) >= 2:
-                    temp[0] += ', ' + entry['Comment']
-                else:
-                    temp.append(entry['Comment'])
+                temp.append(entry['Comment'])
     return entries
 
 
@@ -89,6 +91,8 @@ def fill_document(data, name, start_date, end_date):
     PAR.tables[2].rows[0].cells[1].text.replace("XX", name)
     PAR.tables[2].rows[2].cells[3].text = start_date
     PAR.tables[2].rows[2].cells[5].text = end_date
+
+    total_hours = 0
     # sublist: 0=description, 1=date, 2=hours, PAR table: 0=date, 1=description, 2=hours
     for i, sublist in enumerate(data):
         if not sublist[0]:
@@ -96,6 +100,9 @@ def fill_document(data, name, start_date, end_date):
         PAR.tables[3].rows[i+1].cells[1].text = sublist[0]
         PAR.tables[3].rows[i+1].cells[0].text = sublist[1]
         PAR.tables[3].rows[i+1].cells[2].text = sublist[2]
+        if sublist[2]:
+            total_hours += float(sublist[2])
+    PAR.tables[3].rows[-1].cells[2].text = str(total_hours)
     
     name = name.replace(" ", "-")
     start_date = start_date.replace("/", ".")
@@ -146,7 +153,7 @@ def main():
                 exit("Fetching workday data failed. Exiting")
         # fill document for current employee
         fill_document(organized_data, employee_name, start_date, end_date)
-        print(f"Successfully created report for ${name}")
+        print(f"Successfully created report for {name}")
 
 
 if __name__ == "__main__":
